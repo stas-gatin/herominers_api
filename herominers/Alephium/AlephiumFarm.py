@@ -3,7 +3,7 @@ import json
 from datetime import datetime
 
 
-class AlephiumMiner:
+class AlephiumFarm:
     def __init__(self, address):
         self.address = address
         self.base_url = "https://alephium.herominers.com/api"
@@ -21,8 +21,9 @@ class AlephiumMiner:
             "X-Requested-With": "XMLHttpRequest"
         }
         self.headers["Cookie"] = f"mining_address={self.address}"
+        self.data = self.update_stats()
 
-    def get_stats(self, recent_blocks_amount=20, longpoll=False):
+    def update_stats(self, recent_blocks_amount=20, longpoll=False):
         url = f"{self.base_url}/stats_address"
         params = {
             "address": self.address,
@@ -36,7 +37,8 @@ class AlephiumMiner:
         else:
             raise Exception(f"Error fetching stats: {response.status_code}")
 
-    def save_stats_to_file(self, data, filename=None):
+    def save_stats_to_file(self, filename=None):
+        data = self.update_stats()
         if filename is None:
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
             filename = f"alephium_stats_{timestamp}.json"
@@ -44,38 +46,70 @@ class AlephiumMiner:
             json.dump(data, f, indent=4)
         print(f"Stats saved to {filename}")
 
-    def update_data(self):
-        # Здесь должен быть код для получения данных с API
-        # Для примера используем данные из предоставленного JSON
-        with open('paste.txt', 'r') as file:
-            self.data = json.load(file)
-
-    def hashrate_to_gh(self, hashrate):
+    @staticmethod
+    def hashrate_to_gh(hashrate):
         return hashrate / 1e9
 
-    def get_total_hashrate(self):
-        if not self.data:
-            self.get_stats()
+    def farm_total_hashrate(self):
         return self.hashrate_to_gh(self.data['stats']['hashrate'])
 
-    def get_hashrate_1h(self):
-        if not self.data:
-            self.get_stats()
+    def farm_hashrate_1h(self):
         return self.hashrate_to_gh(self.data['stats']['hashrate_1h'])
 
-    def get_hashrate_6h(self):
-        if not self.data:
-            self.get_stats()
+    def farm_hashrate_6h(self):
         return self.hashrate_to_gh(self.data['stats']['hashrate_6h'])
 
-    def get_hashrate_24h(self):
-        if not self.data:
-            self.get_stats()
+    def farm_hashrate_24h(self):
         return self.hashrate_to_gh(self.data['stats']['hashrate_24h'])
 
-    def get_workers_info(self):
-        if not self.data:
-            self.update_data()
+    def farm_shares_good(self):
+        return self.data['stats']['shares_good']
+
+    def farm_shares_invalid(self):
+        return self.data['stats']['shares_invalid']
+
+    def farm_shares_stale(self):
+        return self.data['stats']['shares_stale']
+
+    def farm_blocks_found(self):
+        return self.data['stats']['blocksFound']
+
+    def worker_total_hashrate(self):
+        return self.hashrate_to_gh(self.data['worker']['hashrate'])
+
+    def worker_hashrate_1h(self):
+        return self.hashrate_to_gh(self.data['worker']['hashrate_1h'])
+
+    def worker_hashrate_6h(self):
+        return self.hashrate_to_gh(self.data['worker']['hashrate_6h'])
+
+    def worker_hashrate_24h(self):
+        return self.hashrate_to_gh(self.data['worker']['hashrate_24h'])
+
+    def worker_shares_good(self):
+        return self.data['worker']['shares_good']
+
+    def worker_shares_invalid(self):
+        return self.data['worker']['shares_invalid']
+
+    def worker_shares_stale(self):
+        return self.data['worker']['shares_stale']
+
+    def dead_workers(self):
+        workers = []
+        for worker in self.data['workers']:
+            if worker['hashrate'] == 0:
+                workers.append(worker["name"])
+        return workers
+
+    def online_workers(self):
+        workers = []
+        for worker in self.data['workers']:
+            if worker['hashrate'] != 0:
+                workers.append(worker["name"])
+        return workers
+
+    def get_workers_stats(self):
         workers_info = []
         for worker in self.data['workers']:
             workers_info.append({
@@ -87,19 +121,13 @@ class AlephiumMiner:
             })
         return workers_info
 
-    def print_summary(self):
-        print(f"Общий хешрейт: {self.get_total_hashrate():.2f} GH/s")
-        print(f"Хешрейт за последний час: {self.get_hashrate_1h():.2f} GH/s")
-        print(
-            f"Хешрейт за последние 6 часов: {self.get_hashrate_6h():.2f} GH/s")
-        print(
-            f"Хешрейт за последние 24 часа: {self.get_hashrate_24h():.2f} GH/s")
-
-        print("\nИнформация о воркерах:")
-        for worker in self.get_workers_info():
-            print(f"Имя: {worker['name']}")
-            print(f"  Текущий хешрейт: {worker['hashrate_gh']:.2f} GH/s")
-            print(f"  Хешрейт за 1 час: {worker['hashrate_1h_gh']:.2f} GH/s")
-            print(f"  Хешрейт за 6 часов: {worker['hashrate_6h_gh']:.2f} GH/s")
-            print(f"  Хешрейт за 24 часа: {worker['hashrate_24h_gh']:.2f} GH/s")
-            print()
+    def get_worker_stats(self, worker_name: str):
+        for worker in self.data['workers']:
+            if worker['name'] == worker_name:
+                return {
+                    'name': worker['name'],
+                    'hashrate_gh': self.hashrate_to_gh(worker['hashrate']),
+                    'hashrate_1h_gh': self.hashrate_to_gh(worker['hashrate_1h']),
+                    'hashrate_6h_gh': self.hashrate_to_gh(worker['hashrate_6h']),
+                    'hashrate_24h_gh': self.hashrate_to_gh(worker['hashrate_24h'])
+                }

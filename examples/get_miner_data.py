@@ -1,6 +1,5 @@
-from herominers import AlephiumMiner
+from herominers import AlephiumFarm
 
-miner = AlephiumMiner("1JE6caq2WcKP97XUNesoie1KpYd4Jj5Tixs7HXKKCsKD3")
-miner.get_stats()
-print(miner.get_total_hashrate())
-miner.print_summary()
+farm = AlephiumFarm("1F8C2ah82M4BqTyYgLuTcXgC6HiiVCrddnTBxFoAZptZH")
+print(farm.farm_blocks_found())
+print(farm.online_workers())
